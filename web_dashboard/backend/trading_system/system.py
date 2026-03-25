@@ -10,6 +10,7 @@ from strategies import VWAPStrategy, OrderFlowStrategy, MomentumStrategy, Compos
 from risk_manager import RiskManager
 from executor import TradeExecutor
 from portfolio import PortfolioManager
+from trading_hours import TradingHours
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class AutoTradingSystem:
     def __init__(self, config: Dict):
         self.config = config
         self.data_fetcher = DataFetcher()
+        self.trading_hours = TradingHours()
         
         self.strategies = {
             'vwap': VWAPStrategy(deviation_threshold=config.get('vwap_deviation', 0.005)),
@@ -50,6 +52,9 @@ class AutoTradingSystem:
         logger.info(f"自动交易系统初始化完成，初始资金: ¥{self.portfolio.initial_capital:,.2f}")
     
     def process_tick(self, tick: Tick):
+        if not self.trading_hours.is_trading_time():
+            return
+        
         if tick.stock_code not in self.history_data:
             self.history_data[tick.stock_code] = []
         

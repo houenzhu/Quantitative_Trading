@@ -14,6 +14,7 @@ from models import Tick, Order, Position
 from data_fetcher import DataFetcher
 from trading_system import AutoTradingSystem
 from stock_searcher import StockSearcher
+from trading_hours import TradingHours
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,6 +33,7 @@ class TradingWebSocketServer:
         self.trading_system = AutoTradingSystem(config)
         self.data_fetcher = DataFetcher()
         self.stock_searcher = StockSearcher()
+        self.trading_hours = TradingHours()
         
         self.stock_pool = config.get('stock_pool', {
             '600547': '山东黄金',
@@ -62,7 +64,8 @@ class TradingWebSocketServer:
                     'stock_pool': self.stock_pool,
                     'statistics': self.trading_system.portfolio.get_statistics(),
                     'positions': self.get_positions_data(),
-                    'orders': self.get_orders_data()
+                    'orders': self.get_orders_data(),
+                    'trading_status': self.trading_hours.get_trading_status()
                 }
             }
             await websocket.send(json.dumps(initial_data, ensure_ascii=False, default=self.json_serializer))
@@ -175,11 +178,20 @@ class TradingWebSocketServer:
     async def fetch_and_broadcast_ticks(self):
         while True:
             try:
+                trading_status = self.trading_hours.get_trading_status()
+                is_trading = trading_status['is_trading_time']
+                
+                await self.broadcast_data({
+                    'type': 'trading_status',
+                    'data': trading_status
+                })
+                
                 for stock_code, stock_name in self.stock_pool.items():
                     tick = self.data_fetcher.get_realtime_tick(stock_code, stock_name)
                     
                     if tick:
-                        self.trading_system.process_tick(tick)
+                        if is_trading:
+                            self.trading_system.process_tick(tick)
                         
                         tick_data = {
                             'timestamp': tick.timestamp.strftime('%Y-%m-%d %H:%M:%S'),

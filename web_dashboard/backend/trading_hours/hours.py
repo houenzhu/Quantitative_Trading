@@ -1,6 +1,13 @@
 from datetime import datetime, time, timedelta
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Set
 import logging
+
+try:
+    import holidays
+    HOLIDAYS_AVAILABLE = True
+except ImportError:
+    HOLIDAYS_AVAILABLE = False
+    logging.warning("holidays库未安装，将使用内置节假日列表。请运行: pip install holidays")
 
 logger = logging.getLogger(__name__)
 
@@ -16,45 +23,82 @@ class TradingHours:
         (AFTERNOON_START, AFTERNOON_END)
     ]
     
-    HOLIDAYS_2024 = [
-        "2024-01-01", "2024-02-10", "2024-02-11", "2024-02-12",
-        "2024-02-13", "2024-02-14", "2024-02-15", "2024-02-16", "2024-02-17",
-        "2024-04-04", "2024-04-05", "2024-04-06",
-        "2024-05-01", "2024-05-02", "2024-05-03", "2024-05-04", "2024-05-05",
-        "2024-06-08", "2024-06-09", "2024-06-10",
-        "2024-09-15", "2024-09-16", "2024-09-17",
-        "2024-10-01", "2024-10-02", "2024-10-03", "2024-10-04", "2024-10-05",
-        "2024-10-06", "2024-10-07",
-    ]
+    MAKEUP_TRADING_DAYS = {
+        "2024-02-04",
+        "2024-02-18",
+        "2024-04-07",
+        "2024-04-28",
+        "2024-05-11",
+        "2024-09-14",
+        "2024-09-29",
+        "2024-10-12",
+        "2025-01-26",
+        "2025-02-08",
+        "2025-04-27",
+        "2026-01-25",
+        "2026-04-26",
+        "2026-05-09",
+        "2026-09-27",
+        "2026-10-10",
+    }
     
-    HOLIDAYS_2025 = [
-        "2025-01-01",
-        "2025-01-28", "2025-01-29", "2025-01-30", "2025-01-31",
-        "2025-02-01", "2025-02-02", "2025-02-03", "2025-02-04",
-        "2025-04-04", "2025-04-05", "2025-04-06",
-        "2025-05-01", "2025-05-02", "2025-05-03", "2025-05-04", "2025-05-05",
-        "2025-05-31", "2025-06-01", "2025-06-02",
-        "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04",
-        "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08",
-    ]
+    ADDITIONAL_HOLIDAYS = {
+        "2024-02-09",
+        "2025-01-27",
+        "2026-02-07",
+    }
     
-    def __init__(self, custom_holidays: Optional[list] = None):
-        self.holidays = set(self.HOLIDAYS_2024 + self.HOLIDAYS_2025)
+    def __init__(self, custom_holidays: Optional[Set[str]] = None, custom_makeup_days: Optional[Set[str]] = None):
+        self._cn_holidays = None
+        self._holiday_years = set()
+        
         if custom_holidays:
-            self.holidays.update(custom_holidays)
+            self.ADDITIONAL_HOLIDAYS.update(custom_holidays)
+        if custom_makeup_days:
+            self.MAKEUP_TRADING_DAYS.update(custom_makeup_days)
+    
+    def _get_cn_holidays(self, year: int):
+        if year not in self._holiday_years:
+            self._holiday_years.add(year)
+            
+            if HOLIDAYS_AVAILABLE:
+                if not hasattr(self, '_cn_holidays') or self._cn_holidays is None:
+                    self._cn_holidays = holidays.CN(years=year)
+                else:
+                    self._cn_holidays.expand(years=year)
+        
+        return self._cn_holidays
     
     def is_holiday(self, dt: datetime) -> bool:
         date_str = dt.strftime("%Y-%m-%d")
-        return date_str in self.holidays
+        
+        if date_str in self.MAKEUP_TRADING_DAYS:
+            return False
+        
+        if date_str in self.ADDITIONAL_HOLIDAYS:
+            return True
+        
+        if HOLIDAYS_AVAILABLE:
+            cn_holidays = self._get_cn_holidays(dt.year)
+            return dt.date() in cn_holidays
+        
+        return False
     
     def is_weekend(self, dt: datetime) -> bool:
+        date_str = dt.strftime("%Y-%m-%d")
+        
+        if date_str in self.MAKEUP_TRADING_DAYS:
+            return False
+        
         return dt.weekday() >= 5
     
     def is_trading_day(self, dt: datetime) -> bool:
-        if self.is_weekend(dt):
-            return False
         if self.is_holiday(dt):
             return False
+        
+        if self.is_weekend(dt):
+            return False
+        
         return True
     
     def is_trading_time(self, dt: Optional[datetime] = None) -> bool:
@@ -154,6 +198,12 @@ class TradingHours:
             status['remaining_seconds'] = int(remaining.total_seconds())
         
         return status
+    
+    def get_holiday_name(self, dt: datetime) -> Optional[str]:
+        if HOLIDAYS_AVAILABLE:
+            cn_holidays = self._get_cn_holidays(dt.year)
+            return cn_holidays.get(dt.date())
+        return None
 
 
 _trading_hours_instance = TradingHours()
@@ -169,3 +219,15 @@ def get_next_trading_time(dt: Optional[datetime] = None) -> Optional[datetime]:
 
 def get_trading_status(dt: Optional[datetime] = None) -> dict:
     return _trading_hours_instance.get_trading_status(dt)
+
+
+def is_trading_day(dt: Optional[datetime] = None) -> bool:
+    if dt is None:
+        dt = datetime.now()
+    return _trading_hours_instance.is_trading_day(dt)
+
+
+def get_holiday_name(dt: Optional[datetime] = None) -> Optional[str]:
+    if dt is None:
+        dt = datetime.now()
+    return _trading_hours_instance.get_holiday_name(dt)

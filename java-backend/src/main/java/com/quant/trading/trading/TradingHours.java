@@ -62,6 +62,7 @@ public class TradingHours {
     
     public boolean isTradingTime(LocalDateTime dateTime) {
         if (!isTradingDay(dateTime.toLocalDate())) {
+
             return false;
         }
         

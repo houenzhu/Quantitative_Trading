@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-QuantTradingApplication<quant-trading>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.quant.trading.QuantTradingApplication",
+            "projectName": "quant-trading",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

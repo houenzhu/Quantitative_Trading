@@ -15,6 +15,9 @@ public interface OrderMapper extends BaseMapper<Order> {
     @Select("SELECT * FROM orders ORDER BY created_at DESC LIMIT #{limit}")
     List<Order> findRecent(int limit);
     
+    @Select("SELECT * FROM orders WHERE status IN ('pending', 'submitted', 'partial') ORDER BY created_at DESC")
+    List<Order> findActiveOrders();
+    
     @Select("SELECT * FROM orders WHERE stock_code = #{stockCode} ORDER BY created_at DESC")
     List<Order> findByStockCode(String stockCode);
 }

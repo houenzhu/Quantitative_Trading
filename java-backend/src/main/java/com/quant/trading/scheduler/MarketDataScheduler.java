@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MarketDataScheduler {
     
     private static final Logger logger = LoggerFactory.getLogger(MarketDataScheduler.class);
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     
     @Autowired
     private MarketDataFetcher marketDataFetcher;
@@ -40,20 +42,36 @@ public class MarketDataScheduler {
     
     private final Map<String, List<TickData>> tickHistoryMap = new ConcurrentHashMap<>();
     
+    private boolean loggedNonTradingTime = false;
+    
     @Scheduled(fixedRate = 3000)
     public void fetchAndBroadcastMarketData() {
-        if (!tradingHours.isTradingTime(LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now();
+        boolean isTradingTime = tradingHours.isTradingTime(now);
+        
+        if (!isTradingTime) {
+            if (!loggedNonTradingTime) {
+                logger.info("当前非交易时间: {}，暂停行情获取", now.format(TIME_FORMAT));
+                loggedNonTradingTime = true;
+            }
             return;
         }
+        loggedNonTradingTime = false;
         
         Map<String, String> stockPool = stockPoolService.getStockPoolMap();
         
         if (stockPool.isEmpty()) {
+            logger.warn("股票池为空，无法获取行情");
             return;
         }
         
         List<String> stockCodes = new ArrayList<>(stockPool.keySet());
         List<TickData> tickDataList = marketDataFetcher.fetchBatchTickData(stockCodes);
+        
+        if (tickDataList.isEmpty()) {
+            logger.warn("未获取到任何行情数据");
+            return;
+        }
         
         for (TickData tick : tickDataList) {
             if (tick != null && tick.getCode() != null) {
@@ -75,7 +93,7 @@ public class MarketDataScheduler {
             }
         }
         
-        logger.debug("获取并广播行情数据: {} 只股票", tickDataList.size());
+        logger.info("获取并广播行情数据: {} 只股票 - {}", tickDataList.size(), now.format(TIME_FORMAT));
     }
     
     public List<TickData> getTickHistory(String stockCode) {

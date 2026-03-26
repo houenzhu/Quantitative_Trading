@@ -19,6 +19,10 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         return baseMapper.findRecent(limit);
     }
     
+    public List<Order> getActiveOrders() {
+        return baseMapper.findActiveOrders();
+    }
+    
     public List<Order> getOrdersByStockCode(String stockCode) {
         return baseMapper.findByStockCode(stockCode);
     }

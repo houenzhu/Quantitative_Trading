@@ -42,7 +42,9 @@ public class MarketDataBroadcaster {
         
         messagingTemplate.convertAndSend("/topic/tick/" + stockCode, tickData);
         
-        logger.debug("广播行情数据: {} - {} - {}", stockCode, tickData.getName(), tickData.getPrice());
+        messagingTemplate.convertAndSend("/topic/market", tickData);
+        
+        logger.info("广播行情数据: {} - {} - {}", stockCode, tickData.getName(), tickData.getPrice());
     }
     
     public void broadcastAllTickData(Map<String, TickData> tickDataMap) {

@@ -16,6 +16,10 @@ public class PositionService extends ServiceImpl<PositionMapper, Position> {
         return baseMapper.findActivePositions();
     }
     
+    public List<Position> getAllPositions() {
+        return list();
+    }
+    
     public Position getPositionByStockCode(String stockCode) {
         return baseMapper.findByStockCode(stockCode);
     }

@@ -128,7 +128,8 @@ class TradingWebSocketServer:
         
         self.stock_pool[code] = name
         self.tick_history[code] = []
-        self.trading_system.stock_pool = self.stock_pool
+        
+        self.trading_system.add_stock(code, name)
         
         if code not in self.trading_system.history_data:
             self.trading_system.history_data[code] = []
@@ -160,7 +161,7 @@ class TradingWebSocketServer:
         if code in self.trading_system.history_data:
             del self.trading_system.history_data[code]
         
-        self.trading_system.stock_pool = self.stock_pool
+        self.trading_system.remove_stock(code)
         
         logger.info(f"移除股票: {code} - {name}")
         

@@ -11,6 +11,9 @@ public class Account {
     @TableId(type = IdType.AUTO)
     private Long id;
     
+    @TableField("user_id")
+    private Long userId;
+    
     private LocalDateTime timestamp;
     
     @TableField("initial_capital")

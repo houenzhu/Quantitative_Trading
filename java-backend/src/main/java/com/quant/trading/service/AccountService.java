@@ -17,12 +17,29 @@ public class AccountService extends ServiceImpl<AccountMapper, Account> {
         return baseMapper.findLatest();
     }
     
+    public Account getLatestAccountByUserId(Long userId) {
+        return baseMapper.findLatestByUserId(userId);
+    }
+    
     public List<Account> getRecentAccounts(int limit) {
         return baseMapper.findRecent(limit);
     }
     
+    public List<Account> getRecentAccountsByUserId(Long userId, int limit) {
+        return baseMapper.findRecentByUserId(userId, limit);
+    }
+    
     public Map<String, Object> getAccountInfo() {
         Account account = getLatestAccount();
+        return buildAccountInfo(account);
+    }
+    
+    public Map<String, Object> getAccountInfoByUserId(Long userId) {
+        Account account = getLatestAccountByUserId(userId);
+        return buildAccountInfo(account);
+    }
+    
+    private Map<String, Object> buildAccountInfo(Account account) {
         Map<String, Object> info = new HashMap<>();
         if (account != null) {
             info.put("totalEquity", account.getTotalEquity());
@@ -43,8 +60,9 @@ public class AccountService extends ServiceImpl<AccountMapper, Account> {
         return info;
     }
     
-    public Account initAccount(BigDecimal initialCapital) {
+    public Account initAccount(Long userId, BigDecimal initialCapital) {
         Account account = new Account();
+        account.setUserId(userId);
         account.setTimestamp(LocalDateTime.now());
         account.setInitialCapital(initialCapital);
         account.setCurrentCapital(initialCapital);

@@ -19,17 +19,50 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         return baseMapper.findRecent(limit);
     }
     
+    public List<Order> getRecentOrdersByUserId(Long userId, int limit) {
+        return baseMapper.findRecentByUserId(userId, limit);
+    }
+    
     public List<Order> getActiveOrders() {
         return baseMapper.findActiveOrders();
+    }
+    
+    public List<Order> getActiveOrdersByUserId(Long userId) {
+        return baseMapper.findActiveOrdersByUserId(userId);
     }
     
     public List<Order> getOrdersByStockCode(String stockCode) {
         return baseMapper.findByStockCode(stockCode);
     }
     
+    public List<Order> getOrdersByUserIdAndStockCode(Long userId, String stockCode) {
+        return baseMapper.findByUserIdAndStockCode(userId, stockCode);
+    }
+    
     public Order createOrder(String stockCode, String stockName, String side, String orderType, 
                              java.math.BigDecimal price, int quantity, String reason) {
         Order order = new Order();
+        order.setOrderId(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+        order.setStockCode(stockCode);
+        order.setStockName(stockName);
+        order.setSide(side);
+        order.setOrderType(orderType);
+        order.setPrice(price);
+        order.setQuantity(quantity);
+        order.setFilledQuantity(0);
+        order.setAvgFillPrice(java.math.BigDecimal.ZERO);
+        order.setStatus("pending");
+        order.setReason(reason);
+        order.setCommission(java.math.BigDecimal.ZERO);
+        order.setSlippage(java.math.BigDecimal.ZERO);
+        save(order);
+        return order;
+    }
+    
+    public Order createOrderForUser(Long userId, String stockCode, String stockName, String side, String orderType, 
+                             java.math.BigDecimal price, int quantity, String reason) {
+        Order order = new Order();
+        order.setUserId(userId);
         order.setOrderId(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         order.setStockCode(stockCode);
         order.setStockName(stockName);

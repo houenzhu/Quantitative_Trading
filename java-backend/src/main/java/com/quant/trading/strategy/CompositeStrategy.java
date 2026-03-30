@@ -1,9 +1,11 @@
 package com.quant.trading.strategy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quant.trading.entity.Signal;
 import com.quant.trading.entity.TickData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -18,13 +20,14 @@ public class CompositeStrategy implements Strategy {
     
     private static final String NAME = "Composite";
     
-    private final MomentumStrategy momentumStrategy;
-    private final VWAPStrategy vwapStrategy;
+    @Autowired
+    private MomentumStrategy momentumStrategy;
     
-    public CompositeStrategy(MomentumStrategy momentumStrategy, VWAPStrategy vwapStrategy) {
-        this.momentumStrategy = momentumStrategy;
-        this.vwapStrategy = vwapStrategy;
-    }
+    @Autowired
+    private VWAPStrategy vwapStrategy;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
     
     @Override
     public String getName() {
@@ -33,8 +36,12 @@ public class CompositeStrategy implements Strategy {
     
     @Override
     public Signal analyze(String stockCode, String stockName, TickData currentTick, List<TickData> history) {
-        Signal momentumSignal = momentumStrategy.analyze(stockCode, stockName, currentTick, history);
-        Signal vwapSignal = vwapStrategy.analyze(stockCode, stockName, currentTick, history);
+        return analyze(stockCode, stockName, currentTick, history, null);
+    }
+    
+    public Signal analyze(String stockCode, String stockName, TickData currentTick, List<TickData> history, String parametersJson) {
+        Signal momentumSignal = momentumStrategy.analyze(stockCode, stockName, currentTick, history, parametersJson);
+        Signal vwapSignal = vwapStrategy.analyze(stockCode, stockName, currentTick, history, parametersJson);
         
         if (momentumSignal == null && vwapSignal == null) {
             return null;
@@ -50,12 +57,16 @@ public class CompositeStrategy implements Strategy {
                 combined.setReason("复合信号确认: " + momentumSignal.getAction() + " - " + momentumSignal.getReason() + " | " + vwapSignal.getReason());
                 combined.setStrategyName(NAME);
                 combined.setTimestamp(LocalDateTime.now());
+                logger.info("复合策略触发: {} - {}", stockCode, combined.getReason());
                 return combined;
             }
+            logger.debug("复合策略信号冲突: 动量={}, VWAP={}, 跳过", momentumSignal.getAction(), vwapSignal.getAction());
             return null;
         }
         
-        return momentumSignal != null ? momentumSignal : vwapSignal;
+        Signal singleSignal = momentumSignal != null ? momentumSignal : vwapSignal;
+        logger.info("复合策略单一信号: {} - {} - {}", stockCode, singleSignal.getAction(), singleSignal.getReason());
+        return singleSignal;
     }
     
     @Override

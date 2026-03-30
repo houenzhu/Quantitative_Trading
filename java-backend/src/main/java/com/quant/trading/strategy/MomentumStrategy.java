@@ -1,16 +1,19 @@
 package com.quant.trading.strategy;
 
-import com.quant.trading.entity.Signal;
-import com.quant.trading.entity.TickData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.quant.trading.entity.Signal;
+import com.quant.trading.entity.TickData;
 
 @Component
 public class MomentumStrategy implements Strategy {
@@ -19,8 +22,8 @@ public class MomentumStrategy implements Strategy {
     
     private static final String NAME = "Momentum";
     
-    private int lookbackPeriod = 5;
-    private BigDecimal momentumThreshold = new BigDecimal("0.02");
+    @Autowired
+    private ObjectMapper objectMapper;
     
     @Override
     public String getName() {
@@ -29,7 +32,31 @@ public class MomentumStrategy implements Strategy {
     
     @Override
     public Signal analyze(String stockCode, String stockName, TickData currentTick, List<TickData> history) {
+        return analyze(stockCode, stockName, currentTick, history, null);
+    }
+    
+    public Signal analyze(String stockCode, String stockName, TickData currentTick, List<TickData> history, String parametersJson) {
+        int lookbackPeriod = 5;
+        BigDecimal momentumThreshold = new BigDecimal("0.005");
+        
+        if (parametersJson != null && !parametersJson.isEmpty()) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> params = objectMapper.readValue(parametersJson, Map.class);
+                
+                if (params.containsKey("lookbackPeriod")) {
+                    lookbackPeriod = ((Number) params.get("lookbackPeriod")).intValue();
+                }
+                if (params.containsKey("momentumThreshold")) {
+                    momentumThreshold = new BigDecimal(params.get("momentumThreshold").toString());
+                }
+            } catch (Exception e) {
+                logger.warn("解析动量策略参数失败，使用默认值: {}", e.getMessage());
+            }
+        }
+        
         if (history == null || history.size() < lookbackPeriod) {
+            logger.debug("历史数据不足: {} 需要{}个, 当前{}个", stockCode, lookbackPeriod, history == null ? 0 : history.size());
             return null;
         }
         
@@ -52,11 +79,17 @@ public class MomentumStrategy implements Strategy {
         if (momentum.compareTo(momentumThreshold) > 0) {
             signal.setAction("buy");
             signal.setStrength(momentum.multiply(new BigDecimal("100")));
-            signal.setReason("动量突破买入信号: " + momentum.multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP) + "%");
+            signal.setReason(String.format("动量突破买入信号: %.2f%% (阈值: %.2f%%)", 
+                    momentum.multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP),
+                    momentumThreshold.multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP)));
+            logger.info("动量策略触发买入: {} - {}", stockCode, signal.getReason());
         } else if (momentum.compareTo(momentumThreshold.negate()) < 0) {
             signal.setAction("sell");
             signal.setStrength(momentum.abs().multiply(new BigDecimal("100")));
-            signal.setReason("动量跌破卖出信号: " + momentum.multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP) + "%");
+            signal.setReason(String.format("动量跌破卖出信号: %.2f%% (阈值: %.2f%%)", 
+                    momentum.multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP),
+                    momentumThreshold.multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP)));
+            logger.info("动量策略触发卖出: {} - {}", stockCode, signal.getReason());
         } else {
             return null;
         }
@@ -80,13 +113,5 @@ public class MomentumStrategy implements Strategy {
     
     @Override
     public void reset() {
-    }
-    
-    public void setLookbackPeriod(int lookbackPeriod) {
-        this.lookbackPeriod = lookbackPeriod;
-    }
-    
-    public void setMomentumThreshold(BigDecimal momentumThreshold) {
-        this.momentumThreshold = momentumThreshold;
     }
 }

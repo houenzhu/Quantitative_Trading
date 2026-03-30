@@ -1,5 +1,6 @@
 package com.quant.trading.websocket;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.quant.trading.entity.TickData;
 import com.quant.trading.fetcher.MarketDataFetcher;
 import com.quant.trading.service.AccountService;
@@ -50,25 +51,47 @@ public class WebSocketController {
     public void handleInit(@Payload Map<String, Object> payload) {
         logger.info("收到初始化请求");
         
+        Long userId = null;
+        if (StpUtil.isLogin()) {
+            userId = StpUtil.getLoginIdAsLong();
+        }
+        
         Map<String, Object> initData = new HashMap<>();
-        initData.put("stockPool", stockPoolService.getStockPoolMap());
         
-        try {
-            initData.put("account", accountService.getAccountInfo());
-        } catch (Exception e) {
-            logger.warn("获取账户信息失败: {}", e.getMessage());
-        }
-        
-        try {
-            initData.put("positions", positionService.getAllPositions());
-        } catch (Exception e) {
-            logger.warn("获取持仓信息失败: {}", e.getMessage());
-        }
-        
-        try {
-            initData.put("orders", orderService.getActiveOrders());
-        } catch (Exception e) {
-            logger.warn("获取订单信息失败: {}", e.getMessage());
+        if (userId != null) {
+            initData.put("stockPool", stockPoolService.getStockPoolMapByUserId(userId));
+            try {
+                initData.put("account", accountService.getAccountInfoByUserId(userId));
+            } catch (Exception e) {
+                logger.warn("获取账户信息失败: {}", e.getMessage());
+            }
+            try {
+                initData.put("positions", positionService.getActivePositionsByUserId(userId));
+            } catch (Exception e) {
+                logger.warn("获取持仓信息失败: {}", e.getMessage());
+            }
+            try {
+                initData.put("orders", orderService.getActiveOrdersByUserId(userId));
+            } catch (Exception e) {
+                logger.warn("获取订单信息失败: {}", e.getMessage());
+            }
+        } else {
+            initData.put("stockPool", stockPoolService.getStockPoolMap());
+            try {
+                initData.put("account", accountService.getAccountInfo());
+            } catch (Exception e) {
+                logger.warn("获取账户信息失败: {}", e.getMessage());
+            }
+            try {
+                initData.put("positions", positionService.getActivePositions());
+            } catch (Exception e) {
+                logger.warn("获取持仓信息失败: {}", e.getMessage());
+            }
+            try {
+                initData.put("orders", orderService.getActiveOrders());
+            } catch (Exception e) {
+                logger.warn("获取订单信息失败: {}", e.getMessage());
+            }
         }
         
         messagingTemplate.convertAndSend("/topic/init", initData);
@@ -109,19 +132,36 @@ public class WebSocketController {
         String name = (String) payload.get("name");
         logger.info("添加股票: {} - {}", code, name);
         
-        boolean success = stockPoolService.addStock(code, name);
-        String message = success ? "股票添加成功: " + code : "股票已存在或添加失败: " + code;
+        boolean success;
+        Map<String, String> stockPoolMap;
         
-        Map<String, Object> result = new HashMap<>();
-        result.put("action", "add");
-        result.put("success", success);
-        result.put("message", message);
-        result.put("stockPool", stockPoolService.getStockPoolMap());
-        
-        messagingTemplate.convertAndSend("/topic/stockPool", result);
-        
-        if (success) {
-            broadcaster.broadcastStockPoolUpdate("add", code, name);
+        if (StpUtil.isLogin()) {
+            Long userId = StpUtil.getLoginIdAsLong();
+            success = stockPoolService.addStockForUser(userId, code, name);
+            stockPoolMap = stockPoolService.getStockPoolMapByUserId(userId);
+            
+            String message = success ? "股票添加成功: " + code : "股票已存在或添加失败: " + code;
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("action", "add");
+            result.put("success", success);
+            result.put("message", message);
+            result.put("stockPool", stockPoolMap);
+            
+            broadcaster.broadcastStockPoolUpdateForUser(userId, "add", code, name, stockPoolMap);
+        } else {
+            success = stockPoolService.addStock(code, name);
+            stockPoolMap = stockPoolService.getStockPoolMap();
+            
+            String message = success ? "股票添加成功: " + code : "股票已存在或添加失败: " + code;
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("action", "add");
+            result.put("success", success);
+            result.put("message", message);
+            result.put("stockPool", stockPoolMap);
+            
+            messagingTemplate.convertAndSend("/topic/stockPool", result);
         }
     }
     
@@ -130,16 +170,37 @@ public class WebSocketController {
         String code = (String) payload.get("code");
         logger.info("移除股票: {}", code);
         
-        boolean success = stockPoolService.removeStock(code);
-        String message = success ? "股票移除成功: " + code : "股票不存在或移除失败: " + code;
+        boolean success;
+        Map<String, String> stockPoolMap;
         
-        Map<String, Object> result = new HashMap<>();
-        result.put("action", "remove");
-        result.put("success", success);
-        result.put("message", message);
-        result.put("stockPool", stockPoolService.getStockPoolMap());
-        
-        messagingTemplate.convertAndSend("/topic/stockPool", result);
+        if (StpUtil.isLogin()) {
+            Long userId = StpUtil.getLoginIdAsLong();
+            success = stockPoolService.removeStockForUser(userId, code);
+            stockPoolMap = stockPoolService.getStockPoolMapByUserId(userId);
+            
+            String message = success ? "股票移除成功: " + code : "股票不存在或移除失败: " + code;
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("action", "remove");
+            result.put("success", success);
+            result.put("message", message);
+            result.put("stockPool", stockPoolMap);
+            
+            broadcaster.broadcastStockPoolUpdateForUser(userId, "remove", code, "", stockPoolMap);
+        } else {
+            success = stockPoolService.removeStock(code);
+            stockPoolMap = stockPoolService.getStockPoolMap();
+            
+            String message = success ? "股票移除成功: " + code : "股票不存在或移除失败: " + code;
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("action", "remove");
+            result.put("success", success);
+            result.put("message", message);
+            result.put("stockPool", stockPoolMap);
+            
+            messagingTemplate.convertAndSend("/topic/stockPool", result);
+        }
         
         if (success) {
             broadcaster.clearTickHistory(code);

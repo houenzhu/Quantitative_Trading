@@ -3,6 +3,7 @@ package com.quant.trading.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.quant.trading.entity.Trade;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import java.util.List;
 
@@ -12,6 +13,12 @@ public interface TradeMapper extends BaseMapper<Trade> {
     @Select("SELECT * FROM trades ORDER BY traded_at DESC LIMIT #{limit}")
     List<Trade> findRecent(int limit);
     
+    @Select("SELECT * FROM trades WHERE user_id = #{userId} ORDER BY traded_at DESC LIMIT #{limit}")
+    List<Trade> findRecentByUserId(@Param("userId") Long userId, @Param("limit") int limit);
+    
     @Select("SELECT * FROM trades WHERE stock_code = #{stockCode} ORDER BY traded_at DESC")
     List<Trade> findByStockCode(String stockCode);
+    
+    @Select("SELECT * FROM trades WHERE user_id = #{userId} AND stock_code = #{stockCode} ORDER BY traded_at DESC")
+    List<Trade> findByUserIdAndStockCode(@Param("userId") Long userId, @Param("stockCode") String stockCode);
 }

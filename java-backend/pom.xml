@@ -23,6 +23,7 @@
         <lombok.version>1.18.30</lombok.version>
         <hutool.version>5.8.24</hutool.version>
         <fastjson2.version>2.0.43</fastjson2.version>
+        <sa-token.version>1.39.0</sa-token.version>
     </properties>
     
     <dependencies>
@@ -30,6 +31,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
         </dependency>
 
         <!-- Spring Boot Starters -->
@@ -47,6 +55,20 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        
+        <!-- Sa-Token 权限认证 -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
+            <version>${sa-token.version}</version>
+        </dependency>
+        
+        <!-- Sa-Token Core -->
+        <!-- <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-core</artifactId>
+            <version>${sa-token.version}</version>
+        </dependency> -->
         
         <!-- MyBatis-Plus -->
         <dependency>
@@ -111,6 +133,7 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <fork>true</fork>
                 </configuration>
             </plugin>
         </plugins>

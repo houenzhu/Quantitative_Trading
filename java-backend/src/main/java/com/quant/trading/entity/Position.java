@@ -11,6 +11,9 @@ public class Position {
     @TableId(type = IdType.AUTO)
     private Long id;
     
+    @TableField("user_id")
+    private Long userId;
+    
     @TableField("stock_code")
     private String stockCode;
     

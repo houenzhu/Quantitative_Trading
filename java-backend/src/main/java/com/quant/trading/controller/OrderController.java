@@ -1,5 +1,6 @@
 package com.quant.trading.controller;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.quant.trading.common.Result;
 import com.quant.trading.entity.Order;
 import com.quant.trading.service.OrderService;
@@ -17,6 +18,11 @@ public class OrderController {
     
     @GetMapping("/recent")
     public Result<List<Order>> getRecentOrders(@RequestParam(defaultValue = "100") int limit) {
+        if (StpUtil.isLogin()) {
+            Long userId = StpUtil.getLoginIdAsLong();
+            List<Order> orders = orderService.getRecentOrdersByUserId(userId, limit);
+            return Result.success(orders);
+        }
         List<Order> orders = orderService.getRecentOrders(limit);
         return Result.success(orders);
     }
@@ -29,6 +35,11 @@ public class OrderController {
     
     @GetMapping("/stock/{stockCode}")
     public Result<List<Order>> getOrdersByStockCode(@PathVariable String stockCode) {
+        if (StpUtil.isLogin()) {
+            Long userId = StpUtil.getLoginIdAsLong();
+            List<Order> orders = orderService.getOrdersByUserIdAndStockCode(userId, stockCode);
+            return Result.success(orders);
+        }
         List<Order> orders = orderService.getOrdersByStockCode(stockCode);
         return Result.success(orders);
     }
@@ -42,7 +53,13 @@ public class OrderController {
             @RequestParam BigDecimal price,
             @RequestParam int quantity,
             @RequestParam(required = false) String reason) {
-        Order order = orderService.createOrder(stockCode, stockName, side, orderType, price, quantity, reason);
+        Order order;
+        if (StpUtil.isLogin()) {
+            Long userId = StpUtil.getLoginIdAsLong();
+            order = orderService.createOrderForUser(userId, stockCode, stockName, side, orderType, price, quantity, reason);
+        } else {
+            order = orderService.createOrder(stockCode, stockName, side, orderType, price, quantity, reason);
+        }
         return Result.success(order);
     }
     

@@ -40,6 +40,9 @@ public class MarketDataScheduler {
     @Autowired
     private TradingHours tradingHours;
     
+    @Autowired
+    private RealtimeStrategyExecutor realtimeStrategyExecutor;
+    
     private final Map<String, List<TickData>> tickHistoryMap = new ConcurrentHashMap<>();
     
     private boolean loggedNonTradingTime = false;
@@ -90,6 +93,8 @@ public class MarketDataScheduler {
                 if (tick.getPrice() != null) {
                     positionService.updatePositionPrice(stockCode, tick.getPrice());
                 }
+                
+                realtimeStrategyExecutor.onTickData(tick, stockPool);
             }
         }
         

@@ -1,20 +1,18 @@
 package com.quant.trading.websocket;
 
-import com.alibaba.fastjson2.JSON;
-import com.quant.trading.entity.TickData;
-import com.quant.trading.service.StockPoolService;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+
+import com.quant.trading.entity.TickData;
+import com.quant.trading.service.StockPoolService;
 
 @Component
 public class MarketDataBroadcaster {
@@ -61,8 +59,22 @@ public class MarketDataBroadcaster {
         messagingTemplate.convertAndSend("/topic/stockPool", message);
     }
     
+    public void broadcastStockPoolUpdateForUser(Long userId, String action, String stockCode, String stockName, Map<String, String> stockPool) {
+        Map<String, Object> message = Map.of(
+            "action", action,
+            "stockCode", stockCode,
+            "stockName", stockName,
+            "stockPool", stockPool
+        );
+        messagingTemplate.convertAndSend("/topic/user/" + userId + "/stockPool", message);
+    }
+    
     public void broadcastOrderUpdate(Object order) {
         messagingTemplate.convertAndSend("/topic/orders", order);
+    }
+    
+    public void broadcastOrderUpdateForUser(Long userId, Object order) {
+        messagingTemplate.convertAndSend("/topic/user/" + userId + "/orders", order);
     }
     
     public void broadcastTradeUpdate(Object trade) {
@@ -73,12 +85,24 @@ public class MarketDataBroadcaster {
         messagingTemplate.convertAndSend("/topic/positions", position);
     }
     
+    public void broadcastPositionUpdateForUser(Long userId, Object position) {
+        messagingTemplate.convertAndSend("/topic/user/" + userId + "/positions", position);
+    }
+    
     public void broadcastAccountUpdate(Object account) {
         messagingTemplate.convertAndSend("/topic/account", account);
     }
     
+    public void broadcastAccountUpdateForUser(Long userId, Object account) {
+        messagingTemplate.convertAndSend("/topic/user/" + userId + "/account", account);
+    }
+    
     public void broadcastSignal(Object signal) {
         messagingTemplate.convertAndSend("/topic/signals", signal);
+    }
+    
+    public void broadcastSignalForUser(Long userId, Object signal) {
+        messagingTemplate.convertAndSend("/topic/user/" + userId + "/signals", signal);
     }
     
     public List<TickData> getTickHistory(String stockCode) {

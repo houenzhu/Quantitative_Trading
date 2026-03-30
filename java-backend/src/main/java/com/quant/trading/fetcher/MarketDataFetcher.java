@@ -171,12 +171,11 @@ public class MarketDataFetcher {
         }
         
         try {
-            String url = "https://searchapi.eastmoney.com/bussiness/web/QuotationLabelSearch?keyword=" 
-                    + keyword + "&type=stock&pi=1&ps=30";
+            String url = "https://suggest3.sinajs.cn/suggest/type=11,13,15,17,21,23,24,25,26,27,33,39&key=" + keyword;
             
             Request request = new Request.Builder()
                     .url(url)
-                    .addHeader("Referer", "https://quote.eastmoney.com/")
+                    .addHeader("Referer", "https://finance.sina.com.cn")
                     .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                     .build();
             
@@ -187,25 +186,50 @@ public class MarketDataFetcher {
                 }
                 
                 String body = response.body().string();
-                JSONObject json = JSON.parseObject(body);
                 
-                if (json == null) {
+                if (body == null || body.isEmpty() || !body.contains("suggestvalue")) {
                     return results;
                 }
                 
-                JSONObject data = json.getJSONObject("Data");
-                if (data == null) {
+                int startIdx = body.indexOf("var suggestvalue=\"");
+                if (startIdx == -1) {
                     return results;
                 }
                 
-                JSONArray stocks = data.getJSONArray("Stock");
-                if (stocks != null) {
-                    for (int i = 0; i < stocks.size(); i++) {
-                        JSONObject stock = stocks.getJSONObject(i);
-                        Map<String, String> item = new HashMap<>();
-                        item.put("code", stock.getString("Code"));
-                        item.put("name", stock.getString("Name"));
-                        results.add(item);
+                startIdx += "var suggestvalue=\"".length();
+                int endIdx = body.indexOf("\";", startIdx);
+                if (endIdx == -1) {
+                    return results;
+                }
+                
+                String content = body.substring(startIdx, endIdx);
+                String[] lines = content.split(";");
+                
+                for (String line : lines) {
+                    if (line == null || line.trim().isEmpty()) {
+                        continue;
+                    }
+                    
+                    String[] parts = line.split(",");
+                    if (parts.length < 5) {
+                        continue;
+                    }
+                    
+                    String code = parts[2].trim();
+                    String name = parts[4].trim();
+                    
+                    if (code != null && !code.isEmpty() && name != null && !name.isEmpty()) {
+                        if (code.startsWith("6") || code.startsWith("0") || code.startsWith("3") || code.startsWith("68")) {
+                            Map<String, String> item = new HashMap<>();
+                            item.put("code", code);
+                            item.put("name", name);
+                            item.put("display", code + " - " + name);
+                            results.add(item);
+                            
+                            if (results.size() >= 10) {
+                                break;
+                            }
+                        }
                     }
                 }
             }
